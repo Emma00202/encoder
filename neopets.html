@@ -1,0 +1,138 @@
+<html>
+<meta>
+<style>
+#drop_zone {
+  border: 5px solid blue;
+  width: 200px;
+  height: 100px;
+}
+</style>
+</meta>
+<body>
+<div id="drop_zone">
+  <p>Press ctrl+v or Drag one or more files to this <i>drop zone</i>.</p>
+</div>
+
+<script type=module>
+
+  import webp_enc from "https://cdn.jsdelivr.net/npm/webp-encode-asm@0.0.1/webp_enc.js"
+
+  function dropHandler(ev) {
+    console.log("File(s) dropped");
+  
+    // Prevent default behavior (Prevent file from being opened)
+    ev.preventDefault();
+
+    console.log(ev.dataTransfer);
+  
+    if (ev.dataTransfer.items) {
+      // Use DataTransferItemList interface to access the file(s)
+      [...ev.dataTransfer.items].forEach((item, i) => {
+        // If dropped items aren't files, reject them
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          console.log(`… file[${i}].name = ${file.name}`);
+        console.log(file);
+        }
+      });
+    } else {
+      // Use DataTransfer interface to access the file(s)
+      [...ev.dataTransfer.files].forEach((file, i) => {
+        console.log(`… file[${i}].name = ${file.name}`);
+        console.log(file);
+      });
+    }
+  }
+
+function dragOverHandler(ev) {
+  console.log("File(s) in drop zone");
+
+  // Prevent default behavior (Prevent file from being opened)
+  ev.preventDefault();
+}
+
+  var drop_zone = document.getElementById("drop_zone");
+  drop_zone.addEventListener("drop",dropHandler);
+  drop_zone.addEventListener("dragover",dragOverHandler);
+  console.log(drop_zone);
+
+
+  async function loadImage(src) {
+    // Load image
+
+    const img = document.createElement('img');
+    img.src = src;
+    await new Promise(resolve => img.onload = resolve);
+
+    // Make canvas same size as image
+    const canvas = document.createElement('canvas');
+    [canvas.width, canvas.height] = [img.width, img.height];
+    // Draw image onto canvas
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return ctx.getImageData(0, 0, img.width, img.height);
+  }
+
+
+  async function convertImage(dataUri) {
+
+    webp_enc().then(async module => {
+        console.log('Version:', module.version().toString(16));
+        const image = await loadImage(dataUri);
+        const result = module.encode(image.data, image.width, image.height, {
+          quality: 75,
+          target_size: 0,
+          target_PSNR: 0,
+          method: 4,
+          sns_strength: 50,
+          filter_strength: 60,
+          filter_sharpness: 0,
+          filter_type: 1,
+          partitions: 0,
+          segments: 4,
+          pass: 1,
+          show_compressed: 0,
+          preprocessing: 0,
+          autofilter: 0,
+          partition_limit: 0,
+          alpha_compression: 1,
+          alpha_filtering: 1,
+          alpha_quality: 100,
+          lossless: 0,
+          exact: 0,
+          image_hint: 0,
+          emulate_jpeg_size: 0,
+          thread_level: 0,
+          low_memory: 0,
+          near_lossless: 100,
+          use_delta_palette: 0,
+          use_sharp_yuv: 0,
+        });
+        console.log('size', result.length);
+        const blob = new Blob([result], {type: 'image/webp'});
+
+        const blobURL = URL.createObjectURL(blob);
+        const img = document.createElement('img');
+        img.src = blobURL;
+        document.body.appendChild(img);
+      });
+  }
+
+
+    document.onpaste = function(event){
+      var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+       {
+        var index = 1;
+        var item = items[index];
+        if (item.kind === 'file') {
+          var blob = item.getAsFile();
+          var reader = new FileReader();
+          reader.onload = function(event){
+            convertImage(event.target.result);
+            console.log(event.target.result)
+          }; // data url!
+          reader.readAsDataURL(blob);
+        }
+      }
+    }
+</script>
